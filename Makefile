@@ -1,6 +1,6 @@
 all: compile upload
 
-compile:
+compile main.c library.c:
 	avr-gcc -Os -DF_CPU=16000000UL -DBAUD=57600 -mmcu=atmega328p -c main.c -o main.o
 	avr-gcc -Os -DF_CPU=16000000UL -DBAUD=57600 -mmcu=atmega328p -c library.c -o lib.o
 	avr-gcc -mmcu=atmega328p main.o lib.o -o main

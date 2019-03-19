@@ -5,6 +5,7 @@
 
 
 void UART0_init() {
+    // set baud rate (calculated by avr-libc)
     UBRR0H = UBRRH_VALUE;
     UBRR0L = UBRRL_VALUE;
 
@@ -48,7 +49,7 @@ char UART0_read_char() {
 
 // values: https://sites.google.com/site/qeewiki/books/avr-guide/pwm-on-the-atmega328
 void pwm_0A_init() {
-    // set PD6 as output
+    // set PD6 as output (arduino pin 6)
     DDRD |= _BV(DDD6);
 
     // set to non-inverting mode

@@ -21,13 +21,9 @@ void led_blue_flip() {
     PORTB ^= _BV(PORTB5);
 }
 
-
+// UART recieve interrupt handler
 ISR(USART_RX_vect) {
-    led_blue_flip();
-    char broken = UDR0;
-
-    OCR0A = broken;
-    led_blue_flip();
+    OCR0A = UDR0;
 }
 
 int main (void) {
@@ -43,23 +39,9 @@ int main (void) {
     // enable interrupts
     sei();
 
-    while (1) {
-        OCR0A++;
-        _delay_ms(10);
-    }
-    // char a = 55;
     // while (1) {
-    //     led_blue_flip();
-    //     OCR0A = a;
-    //     a = UART0_read_char();
-    //     UART0_write_char(a);
-    //     _delay_ms(500);
-    // }
-
-
-    // while (1) {
-    //     UART0_write_char('1');
-    //     UART0_write_char('2');
+    //     OCR0A++;
+    //     _delay_ms(10);
     // }
 
     // will jump to start otherwise

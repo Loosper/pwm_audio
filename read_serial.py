@@ -1,4 +1,5 @@
 import serial
+import time
 
 
 BAUD = 57600
@@ -10,10 +11,11 @@ try:
     i = 0
     while True:
         i = (i + 1) % 255
-        con.write(bytes(i))
-        con.flush()
-        print(i)
-        print(con.read(1))
+        data = i.to_bytes(1, byteorder='big')
+
+        con.write(data)
+        print(data)
+        time.sleep(0.01)
 except KeyboardInterrupt:
     con.close()
     print('bye')
