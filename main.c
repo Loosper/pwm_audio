@@ -5,6 +5,8 @@
 #include <util/delay.h>
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
+#include <util/setbaud.h>
+#include <util/delay.h>
 
 #include "SD.h"
 #include "UART.h"
@@ -37,18 +39,18 @@ int send_mosi_data(volatile uint8_t *mosi_data){
 
 int receive_miso_data(){
     int rcv_flag = 0;
-    uint8_t head;         //First byte of response which is a status 
-                          // message indicating if the command was 
+    uint8_t head;         //First byte of response which is a status
+                          // message indicating if the command was
                           // recieved successfully
     uint32_t data;        // Rest 3 bytes of response. This is the longest
                           // response message so not every command will
                           // issue one. Those with shorter ones will have
                           // trailing 0xFF bytes at the end
-                          
+
     for(int i = 0 ; i < 6 ; rcv_flag ? ++ i : i){
         SPDR = 0xFF;                            // Dummy byte needed for the CLK signal
         while(!(SPSR & (1<<SPIF)));             // Wait for data to be sent
-    
+
         if (SPDR != 0xFF && !rcv_flag){
             rcv_flag = 1;
 
@@ -57,7 +59,7 @@ int receive_miso_data(){
         }else if(rcv_flag && i < 5){
             data = data << 8;
             data = SPDR;
-            
+
             UART0_write_byte(SPDR);
         }
     }
@@ -65,20 +67,28 @@ int receive_miso_data(){
     return head;
 }
 
+// UART recieve interrupt handler
+// ISR(USART_RX_vect) {
+//     OCR0A = UDR0;
+//     UDR0 = OCR0A;
+//     _delay_us(69);
+//     // TODO: do this in a loop wihtou interrupts
+// }
+
 int main(void){
     sei();                                          // Enable interrupts
-     
+
     UART0_init();                                   // Init UART with BAUD rate
                                                     // specified in UART.h
     UART0_TX_enable();
     UART0_RX_enable();
-    
+
     // _delay_ms(3000);
 
     DDRB |= (1 << DDB2) | (1 << DDB3) | (1 << DDB5); // SCK, MOSI and SS as outputs
     DDRB &= ~(1 << DDB4);                            // MISO as input
     PORTB |= (1 << DDB4);                            // Enable pull-up resistor
-                                                     // MOSI pin must be driven HIGH(1) 
+                                                     // MOSI pin must be driven HIGH(1)
                                                      // for the communication to occur
 
     SPCR |= (1 << MSTR);                 // Set as master
@@ -88,20 +98,20 @@ int main(void){
                                          // that it can be set to a desired one
     SPCR &= ~((1 << CPOL) | (1 <<CPHA)); // Set SPI mode to (0;0)
     // SPCR |= (1 << SPIE)                  // Enable SPI interrupt
-    SPCR |= (1 << SPE);                  // Enable SPI 
+    SPCR |= (1 << SPE);                  // Enable SPI
 
     PORTB &= ~(1 << PORTB2);             // Set SS line LOW(0) to begin communication
-   
-        
+
+
     send_mosi_data(dummy_mosi_data);     // Send a total of 12 dummy bytes
-    send_mosi_data(dummy_mosi_data);     
+    send_mosi_data(dummy_mosi_data);
 
     send_mosi_data(rst_mosi_data);
     receive_miso_data();
 
     send_mosi_data(chk_mosi_data);
     receive_miso_data();
-    
+
     //send_mosi_data(ocr_mosi_data);
     //receive_miso_data();
     send_mosi_data(cmd55_mosi_data);
@@ -111,7 +121,19 @@ int main(void){
 
     send_mosi_data(init_mosi_data);
     receive_miso_data();
-    
+
+    while (1) {
+        // char a;
+        // OCR0A = UDR0;
+        OCR0A = UART0_read_char();
+        // OCR0A = a;
+        // UDR0 = OCR0A;
+        UART0_write_char(OCR0A);
+        _delay_us(69);
+    }
+
+    // enable interrupts
+    sei();
     while(1);
 }
 
@@ -127,6 +149,6 @@ int main(void){
 //         case 41: mosi_data = initsdc_mosi_data; break;
 //         default: mosi_data = dummy_mosi_data; break;
 //     }
-// 
+//
 //     send_mosi_data(mosi_data);
 // }
