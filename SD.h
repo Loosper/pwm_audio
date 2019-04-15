@@ -1,3 +1,8 @@
+// SD Card commands
+// http://www.dejazzer.com/ee379/lecture_notes/lec12_sd_card.pdf
+// http://elm-chan.org/docs/mmc/mmc_e.html
+// https://openlabpro.com/guide/interfacing-microcontrollers-with-sd-card/
+
 #define SDBEG   0x40 // Hex value of the leading 01xxxxxx needed in every command
 #define CMD0    0x00 // Software reset
 #define CMD1    0x01 // Initiate initialization process
@@ -15,6 +20,7 @@
 #define CMD25   0x19 // Write multiple blocks
 #define CMD55   0x37 // Leading command of ACMD<n> command
 #define CMD58   0x3A // Read OCR
+#define CMD59   0x3B // Switch CRC
 //ACMD<n> means a command sequense of CMD55-CMD<n>.
 
 #define MSG_LENGTH 6 // Every command has a constant length of 6 bytes

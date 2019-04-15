@@ -1,8 +1,8 @@
 #include <stdint.h> 
 
 #define FOSC 16000000                       // Clock Speed
-#define BAUD 9600                           // Baud rate
-#define MYUBRR FOSC/16/BAUD -1              // Corresponding UBBR value
+#define MYBAUD 9600                         // Baud rate
+#define MYUBRR FOSC/16/MYBAUD -1            // Corresponding UBBR value
 
 void UART0_init();
 void UART0_RX_enable();
