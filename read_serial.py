@@ -8,7 +8,7 @@ import subprocess
 
 BAUD = 9600
 con = serial.Serial(
-    '/dev/ttyUSB0', BAUD,
+    '/dev/ttyUSB2', BAUD,
     timeout=0.01,
 )
 file = wave.open('file.wav', 'rb')

@@ -6,13 +6,16 @@
 
 
 void UART0_init() {
-    UBRR0H = (MYUBRR >> 8);
-    UBRR0L = MYUBRR;
+    UBRR0H = UBRRH_VALUE;
+    UBRR0L = UBRRL_VALUE;
 
+    #if USE_2X
+        #warning "2X is needed"
+    #endif
     // double speed if necessary for this baud rate
     // #if USE_2X
     //     UCSR0A |=  _BV(U2X0);
-    // #elif
+    // #else
     //     UCSR0A &= ~_BV(U2X0);
     // #endif
 
