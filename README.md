@@ -11,6 +11,9 @@ wdt - WatchDog Timer
 
 ## Avr-libc paths
 [avr-libc manual](http://nongnu.org/avr-libc/user-manual/modules.html)  
+[arduino nano pinout](http://christianto.tjahyadi.com/wp-content/uploads/2014/11/nano.jpg)  
+[atmega 328p datasheet](http://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcontrollers-ATmega328P_Datasheet.pdf)  
+[timers quickref](https://sites.google.com/site/qeewiki/books/avr-guide/pwm-on-the-atmega328)
 `/usr/lib/avr`  
 `/usr/lib/avr/include/avr/[iom328p.h]` - definitions for different microcontrollers  
 

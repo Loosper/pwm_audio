@@ -42,31 +42,35 @@ void led_blue_flip() {
 
 volatile char latest = 0;
 
-// ISR(TIMER1_COMPA_vect) {
-//     OCR0A = latest;
-// }
+// timer 0 match
+ISR(TIMER0_COMPA_vect) {
+    OCR1A = latest;
+    led_blue_flip();
+}
 
-// // UART recieve interrupt handler
-// ISR(USART_RX_vect) {
-//     latest = UDR0;
-//     UDR0 = latest;
-// }
+// UART recieve
+ISR(USART_RX_vect) {
+    latest = UDR0;
+    // UART0_write_byte(latest);
+    UDR0 = latest;
+}
 
 int main(void) {
     UART0_init();
     UART0_TX_enable();
     UART0_RX_enable();
 
-    pwm_0A_init();
+    timer_0A_init();
     timer_1A_init();
-    init_sd_card();
+
+    // init_sd_card();
 
     // init ready if you will
     led_blue_on();
     // enable interrupts
     sei();
 
-    // pwm_0A_run();
+    // pwm_run();
 
     while(1);
 }

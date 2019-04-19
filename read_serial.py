@@ -8,9 +8,10 @@ import subprocess
 
 BAUD = 9600
 con = serial.Serial(
-    '/dev/ttyUSB2', BAUD,
-    timeout=0.01,
+    '/dev/ttyUSB0', BAUD,
+    timeout=0.1,
 )
+
 file = wave.open('file.wav', 'rb')
 
 # print(file.readframes(1))
