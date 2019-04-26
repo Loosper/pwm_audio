@@ -8,15 +8,7 @@
 #include "UART.h"
 #include "SPI.h"
 #include "SD.h"
-
-
-// UART recieve interrupt handler
-// ISR(USART_RX_vect) {
-//     OCR0A = UDR0;
-//     UDR0 = OCR0A;
-//     _delay_us(69);
-//     // TODO: do this in a loop wihtou interrupts
-// }
+#include "timers.h"
 
 // not working
 // ISR (USART_RX_vect){
@@ -34,73 +26,53 @@
 //     send_mosi_data(mosi_data);
 // }
 
-// values: https://sites.google.com/site/qeewiki/books/avr-guide/pwm-on-the-atmega328
-void pwm_0A_init() {
-
-    // set PD6 (also OC0A) as output (arduino pin 6)
-    DDRD |= _BV(DDD6);
-
-    // set to non-inverting mode
-    TCCR0A &= ~_BV(COM0A0); // 1
-    TCCR0A |=  _BV(COM0A1); // 0
-
-    // no prescaling (should be 16MHz)
-    TCCR0B |=  _BV(CS00);
-    TCCR0B &= ~_BV(CS01);
-    TCCR0B &= ~_BV(CS02);
-
-    // phase correct, TOP = 0xFF
-    TCCR0A |=  _BV(WGM00);
-    TCCR0A |=  _BV(WGM01);
-    // TCCR0A &= ~_BV(WGM01);
-    TCCR0B &= ~_BV(WGM02);
-
-    // duty cycle 0
-    OCR0A = 0;
+// built in led control for debugging
+void led_blue_on() {
+    // set pin 5 high to turn led on
+    PORTB |= _BV(PORTB5);
 }
 
-// void timer_1A_init() {
+void led_blue_off() {
+    // set pin 5 high to turn led off
+    PORTB &= ~_BV(PORTB5);
+}
 
-// }
+void led_blue_flip() {
+    PORTB ^= _BV(PORTB5);
+}
 
-int main(void){
-    sei();                                          // Enable interrupts
+volatile char latest = 0;
 
-    UART0_init();                                   // Init UART with BAUD rate
-                                                    // specified in UART.h
+// timer 0 match
+ISR(TIMER0_COMPA_vect) {
+    OCR1A = latest;
+    led_blue_flip();
+}
+
+// UART recieve
+ISR(USART_RX_vect) {
+    latest = UDR0;
+    // UART0_write_byte(latest);
+    UDR0 = latest;
+}
+
+int main(void) {
+    UART0_init();
     UART0_TX_enable();
     UART0_RX_enable();
 
-    SPI_init();
-    SD_init();
+    // SPI_init();
+    // SD_init();
 
+    timer_0A_init();
+    timer_1A_init();
+
+    // init ready if you will
+    led_blue_on();
     // enable interrupts
     sei();
 
-    // int i = 0;
-    // int inc = 1;
-
-    // while (1) {
-    //     if (i >= 255) {
-    //         inc = -1;
-    //     } else if (i <= 0) {
-    //         inc = 1;
-    //     }
-
-    //     i += inc;
-    //     OCR0A = i;
-    //     // _delay_us(69);
-    // }
-
-    while (1) {
-        // char a;
-        // OCR0A = UDR0;
-        OCR0A = UART0_read_byte();
-        // OCR0A = a;
-        // UDR0 = OCR0A;
-        UART0_write_byte(OCR0A);
-        // _delay_us(69);
-    }
+    // pwm_run();
 
     while(1);
 }
