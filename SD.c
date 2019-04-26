@@ -1,103 +1,222 @@
 #include <stdint.h>
+#include <stdlib.h>
 #include <avr/pgmspace.h>
 
 #include "SD.h"
 #include "UART.h"
+#include "SPI.h"
+// TODO
+// 1) In SD_read_resp, find a way to return
+//    the rest of the responce message without
+//    the extra dummy bytes(0xFF)
+//
+// 2) If a commad isn't accepted 20 times
+//    return an error responce
+
 
 // Dummy bytes needed to prepare SD card
-volatile uint8_t dummy_mosi_data[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-// Software reset
-volatile uint8_t rst_mosi_data[6] = {SDBEG + CMD0, 0x00, 0x00, 0x00, 0x00, 0x95};
-// Check voltage range (only for SDC V2)
-volatile uint8_t chk_mosi_data[6] = {SDBEG + CMD8, 0x00, 0x00, 0x01, 0xAA, 0x87};
-// Switch CRC
-volatile uint8_t crc_mosi_data[6] = {SDBEG + CMD59, 0x00, 0x00, 0x00, 0x00, 0x00};
-// Initiate initialization process
-volatile uint8_t init_mosi_data[6] = {SDBEG + CMD1, 0x00, 0x00, 0x00, 0x00, 0x00};
-// Needed for ACMD
-volatile uint8_t cmd55_mosi_data[6] = {SDBEG + CMD55, 0x00, 0x00, 0x00, 0x00, 0x00};
-// Initiate initialization process. Only for SDC
-volatile uint8_t initsdc_mosi_data[6] = {SDBEG + ACMD41, 0x00, 0x00, 0x00, 0x00, 0x00};
-// Read OCR
-volatile uint8_t ocr_mosi_data[6] = {SDBEG + CMD58, 0x00, 0x00, 0x00, 0x00, 0x00};
+uint8_t dummy_mosi_data[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-int send_mosi_data(volatile uint8_t *mosi_data){
+uint8_t msg[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+
+void SD_write_cmd(uint8_t *mosi_data){
     for(int i = 0 ; i < MSG_LENGTH ; ++ i){
-        SPDR = mosi_data[i];                     // Set the SPI data register
-        while(!(SPSR & (1<<SPIF)));              // Wait for data to be sent
+        SPI_write_byte(mosi_data[i]);
     }
-
-    return 1;
 }
 
-int receive_miso_data(){
+int SD_read_resp(){
     int rcv_flag = 0;
     uint8_t head;         //First byte of response which is a status
                           // message indicating if the command was
                           // recieved successfully
-    uint32_t data;        // Rest 3 bytes of response. This is the longest
-                          // response message so not every command will
-                          // issue one. Those with shorter ones will have
-                          // trailing 0xFF bytes at the end
+    uint32_t data;        // Rest bytes of response.
 
     for(int i = 0 ; i < 6 ; rcv_flag ? ++ i : i){
-        SPDR = 0xFF;                            // Dummy byte needed for the CLK signal
-        while(!(SPSR & (1<<SPIF)));             // Wait for data to be sent
+        uint8_t recv_byte = SPI_read_byte();
 
-        if (SPDR != 0xFF && !rcv_flag){
+        if (recv_byte != 0xFF && !rcv_flag){
             rcv_flag = 1;
 
-            head = SPDR;
-            UART0_write_byte(head);
+            head = recv_byte;
         }else if(rcv_flag && i < 5){
             data = data << 8;
-            data = SPDR;
-
-            UART0_write_byte(SPDR);
+            data = recv_byte;
         }
     }
 
     return head;
 }
 
+uint8_t* SD_build_msg(uint8_t head, uint32_t data, uint8_t *msg){
+    msg[0] = head | SDBEG;
 
-void init_sd_card() {
-    // _delay_ms(3000);
+    msg[1] = data >> 24;
+    msg[2] = data >> 16;
+    msg[3] = data >> 8;
+    msg[4] = data;
 
-    DDRB |= (1 << DDB2) | (1 << DDB3) | (1 << DDB5); // SCK, MOSI and SS as outputs
-    DDRB &= ~(1 << DDB4);                            // MISO as input
-    PORTB |= (1 << DDB4);                            // Enable pull-up resistor
-                                                     // MOSI pin must be driven HIGH(1)
-                                                     // for the communication to occur
+    // When in SPI mode only CRC for CMD0 and CMD8 is needed
+    // Therefore we have it precalculated instead of wasting
+    // time calculating it on the spot.
+    if (head == GO_IDLE_STATE){
+        msg[5] = 0x95;
+    }else if (head == SEND_IF_COND){
+        msg[5] = 0x87;
+    }else if(head == SET_BLOCKLEN){
+        msg[5] = 0xFF;
+    }else{
+        msg[5] = 0x00;
+    }
 
-    SPCR |= (1 << MSTR);                 // Set as master
-    SPCR |= (0 << SPR0) | (1 << SPR1);   // Set to highest division factor (Clock = 125kHz)
-                                         // Prior to initialization the clock frequency
-                                         // should be between 100kHz and 400kHz. After
-                                         // that it can be set to a desired one
-    SPCR &= ~((1 << CPOL) | (1 <<CPHA)); // Set SPI mode to (0;0)
-    // SPCR |= (1 << SPIE)                  // Enable SPI interrupt
-    SPCR |= (1 << SPE);                  // Enable SPI
+    return msg;
+}
 
-    PORTB &= ~(1 << PORTB2);             // Set SS line LOW(0) to begin communication
+void SD_SEND_DUMMY(){
+    SD_write_cmd(dummy_mosi_data);     // Send a total of 12 dummy bytes
+    SD_write_cmd(dummy_mosi_data);
+}
+
+uint8_t SD_GO_IDLE_STATE(){
+    SD_build_msg(GO_IDLE_STATE, 0x00000000, msg);
+    SD_write_cmd(msg);
+    return SD_read_resp();
+}
+
+uint8_t SD_SEND_IF_COND(){
+    SD_build_msg(SEND_IF_COND, 0x000001AA, msg);
+    SD_write_cmd(msg);
+    return SD_read_resp();
+}
+
+uint8_t SD_APP_SEND_OP_COND(){
+    uint8_t resp = 0xFF;
+    do{
+        SD_build_msg(APP_CMD, 0x00000000, msg);
+        SD_write_cmd(msg);
+        SD_read_resp();
+        SD_build_msg(APP_SEND_OP_COND, 0x40000000, msg);
+        SD_write_cmd(msg);
+        resp = SD_read_resp();
+    }while(resp != 0x00);
+
+    return resp;
+}
+
+uint8_t SD_SET_BLOCKLEN(){
+    SD_build_msg(SET_BLOCKLEN, 0x00000000 | BLOCK_SIZE, msg);
+    SD_write_cmd(msg);
+    return SD_read_resp();
+}
+
+uint8_t SD_READ_SINGLE_BLOCK(uint32_t address, uint8_t* data){
+    uint8_t resp = 0x00;
+
+    // The logic here is a bit different from the intitialize
+    // routines. The READ_SINGLE_BLOCK command first sends a
+    // 0x00 to indicate that the command is correct and after
+    // x bytes send a 0xFE message indicating that the next
+    // BLOCK_SIZE bytes are from the SD card's memory.
+    // Thus instead of reading 6 byte responses as in previous
+    // commands we need to read byte by byte because of the
+    // unknown number of separator bytes between 0x00 and 0xFE
+    // responses.
+    SPI_write_byte(0xFF);
+
+    do{
+        SD_build_msg(READ_SINGLE_BLOCK, address, msg);
+        SD_write_cmd(msg);
+
+        do{
+            resp = SPI_read_byte();
+        }while(resp == 0xFF);
+    }while(resp != 0x00);
+
+    do{
+        resp = SPI_read_byte();
+    }while(resp != 0xFE);
+
+    for(int i = 0 ; i < BLOCK_SIZE ; ++ i){
+        data[i] = SPI_read_byte();
+    }
+
+    SPI_write_byte(0xFF);
+    return resp;
+}
+
+uint8_t SD_WRITE_BLOCK(uint32_t address, uint8_t* data){
+    uint8_t resp = 0x00;
+    SPI_write_byte(0xFF);
+
+    do{
+        SD_build_msg(WRITE_BLOCK, address, msg);
+        SD_write_cmd(msg);
+        do{
+            resp = SPI_read_byte();
+        }while(resp == 0xFF);
+    }while(resp != 0x00);
+
+    SPI_write_byte(0xFE); // First byte indicating begining of data block
+
+    for(int i = 0 ; i < BLOCK_SIZE ; ++ i){
+        SPI_write_byte(data[i]);
+    }
+
+    // After the data is sent to the SD card it will first
+    // take some time to process it during which the line
+    // will be held HIGH(1). After that the line will be held
+    // LOW(0) indicating that the data is being written on
+    // to the SD card. After the MISO line is brought back
+    // HIGH(1) we can begin to send new commands to the card
+    //
+    //
+    //  0xFF  .  0xFF . 0xE5  . 0x00  . 0x07  . 0xFF
+    //        .       .       .       .       .
+    //        .       .       .       .       .
+    // -------.-------.---+   .       .    +--.-----------
+    //        .       .   |   .       .    |  .
+    //        .       .   |   .       .    |  .
+    //        .       .   |   .       .    |  .
+    //        .       .   |   .       .    |  .
+    //        .       .   |   .       .    |  .
+    //        .       .   |___._______.____|  .
+    //
+    //    *PROCCESSING*        *WRITING*        *READY*
+    //
+    // The ASCII art above shows how between *PROCESSING* and
+    // *WRITTING* and between *WRITTING* and *READY* we can get
+    // data different from 0xFF and 0x00 respectively due to
+    // segmentation between each byte read.
 
 
-    send_mosi_data(dummy_mosi_data);     // Send a total of 12 dummy bytes
-    send_mosi_data(dummy_mosi_data);
+    do{
+        resp = SPI_read_byte();
+    }while(resp == 0xFF);
 
-    send_mosi_data(rst_mosi_data);
-    receive_miso_data();
+    do{
+        resp = SPI_read_byte();
+    }while(resp == 0x00);
 
-    send_mosi_data(chk_mosi_data);
-    receive_miso_data();
+    return resp;
+}
 
-    //send_mosi_data(ocr_mosi_data);
-    //receive_miso_data();
-    send_mosi_data(cmd55_mosi_data);
-    receive_miso_data();
-    send_mosi_data(initsdc_mosi_data);
-    receive_miso_data();
+void SD_init(){
 
-    send_mosi_data(init_mosi_data);
-    receive_miso_data();
+    SD_SEND_DUMMY();
+    UART0_write_byte(SD_GO_IDLE_STATE());
+    UART0_write_byte(SD_SEND_IF_COND());
+    UART0_write_byte(SD_APP_SEND_OP_COND());
+    UART0_write_byte(SD_SET_BLOCKLEN());
+
+    uint8_t* block_data = malloc(sizeof(uint8_t) * BLOCK_SIZE);
+    for(int i = 0 ; i < BLOCK_SIZE ; ++ i)
+            block_data[i] = 0xAA;
+
+    SD_WRITE_BLOCK(0x0000FF00, block_data);
+
+    SD_READ_SINGLE_BLOCK(0x0000FF00, block_data);
+    UART0_write_byte(block_data[0]);
+    UART0_write_byte(block_data[1]);
+    UART0_write_byte(block_data[2]);
 }

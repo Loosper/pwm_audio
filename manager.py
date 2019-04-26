@@ -1,4 +1,5 @@
 import serial
+from binascii import hexlify
 
 # Make a cool command line tool for
 # interfacing with the SD card.
@@ -17,11 +18,12 @@ import serial
 # bye!
 
 cmd_dict = {
-    'CMD0': 0,
-    'CMD1': 1,
-    'CMD8': 8,
-    'CMD58': 58,
-    'ACMD41': 41
+    'GO_IDLE_STATE': 0x00,
+    'SEND_IF_COND': 0x08,
+    'APP_SEND_OP_COND': 0x29,
+    # 'SET_BLOCKLEN': 0x10,
+    'READ_SINGLE_BLOCK': 0x11,
+    'WRITE_BLOCK': 0x18
     }
 
 
@@ -37,30 +39,30 @@ def main():
     BAUD = 9600
     conn = serial.Serial('/dev/ttyACM0', BAUD)
 
-    try:
-        while True:
-            print(UART_read_byte(conn))
-    except KeyboardInterrupt:
-        conn.close()
-        print('bye!')
-
 #     try:
 #         while True:
-#             cmd_str = input('>> ')
-#             cmd_num = 0
-#
-#             try:
-#                 cmd_num = cmd_dict[cmd_str]
-#                 UART_write_byte(conn, cmd_num)
-#                 print(UART_read_byte(conn))
-#             except KeyError:
-#                 print('No such command!')
-#                 print('Supported commands:')
-#                 print(' '.join(cmd_dict.keys()))
-#
+#             print(hexlify(UART_read_byte(conn)))
 #     except KeyboardInterrupt:
 #         conn.close()
-#         print('\nbye!')
+#         print('bye!')
+
+    try:
+        while True:
+            cmd_str = input('>> ')
+            cmd_num = 0
+
+            try:
+                cmd_num = cmd_dict[cmd_str]
+                UART_write_byte(conn, cmd_num)
+                print(hexlify(UART_read_byte(conn)))
+            except KeyError:
+                print('No such command\n')
+                print('Supported commands:')
+                print(' '.join(cmd_dict.keys()))
+
+    except KeyboardInterrupt:
+        conn.close()
+        print('\nbye!')
 
 
 if __name__ == '__main__':

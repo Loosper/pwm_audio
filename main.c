@@ -6,6 +6,7 @@
 #include <util/delay.h>
 
 #include "UART.h"
+#include "SPI.h"
 #include "SD.h"
 
 
@@ -70,7 +71,8 @@ int main(void){
     UART0_TX_enable();
     UART0_RX_enable();
 
-    init_sd_card();
+    SPI_init();
+    SD_init();
 
     // enable interrupts
     sei();
