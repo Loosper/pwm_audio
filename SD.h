@@ -30,4 +30,4 @@
 
 void SD_init();
 uint8_t SD_READ_SINGLE_BLOCK(uint32_t, uint8_t*);
-void SD_WRITE_BLOCK(uint32_t, uint8_t*);
+uint8_t SD_WRITE_BLOCK(uint32_t, uint8_t*);

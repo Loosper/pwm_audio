@@ -43,17 +43,15 @@ void led_blue_flip() {
 
 volatile char latest = 0;
 
-// timer 0 match
+// will fire when a sample needs changing
 ISR(TIMER0_COMPA_vect) {
     OCR1A = latest;
-    led_blue_flip();
 }
 
 // UART recieve
 ISR(USART_RX_vect) {
     latest = UDR0;
     // UART0_write_byte(latest);
-    UDR0 = latest;
 }
 
 int main(void) {

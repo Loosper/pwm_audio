@@ -3,7 +3,7 @@ LDFLAGS = -mmcu=atmega328p
 CC = avr-gcc
 
 all: compile upload
-main: main.o UART.o SD.o timers.c
+main: main.o UART.o SD.o SPI.o timers.c
 
 compile: main
 	avr-objcopy -O ihex -R .eeprom main main.hex

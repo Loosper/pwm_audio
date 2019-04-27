@@ -37,7 +37,12 @@ def UART_write_byte(conn, byte):
 
 def main():
     BAUD = 9600
-    conn = serial.Serial('/dev/ttyACM0', BAUD)
+    TTY = '/dev/ttyACM0'
+    try:
+        conn = serial.Serial(TTY, BAUD)
+    except serial.SerialException:
+        print(f'Error connecting to {TTY}')
+        return
 
 #     try:
 #         while True:
