@@ -31,6 +31,7 @@ void SPI_write_byte(uint8_t byte){
     SPDR = byte;
     while(!(SPSR & (1 << SPIF)));  // Wait until all data is sent
 }
+
 uint8_t SPI_read_byte(){
     SPDR = 0xFF;                   // Write a dummy byte to the SPI register
                                    // to generate a clock signal for the slave

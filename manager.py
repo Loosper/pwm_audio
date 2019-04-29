@@ -159,7 +159,12 @@ def read_response(conn):
 
 def main():
     BAUD = 76800
-    conn = serial.Serial('/dev/ttyACM0', BAUD)
+    TTY = '/dev/ttyACM0'
+    try:
+        conn = serial.Serial(TTY, BAUD)
+    except serial.SerialException:
+        print(f'Error connecting to {TTY}')
+        return
 
     try:
         for i in range(4):

@@ -14,7 +14,7 @@ void UART0_init() {
     #if USE_2X
         #warning "2X is needed"
     #endif
-    // double speed if necessary for this baud rate
+    // // double speed if necessary for this baud rate
     // #if USE_2X
     //     UCSR0A |=  _BV(U2X0);
     // #else
