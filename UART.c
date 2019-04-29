@@ -1,8 +1,10 @@
 #include <avr/io.h>
+#define F_CPU 16000000
+#define BAUD 76800
 #include <stdint.h>
+#include "UART.h"
 #include <util/setbaud.h>
 
-#include "UART.h"
 
 
 void UART0_init() {
@@ -42,6 +44,12 @@ void UART0_write_byte(uint8_t b) {
     loop_until_bit_is_set(UCSR0A, UDRE0); // Wait until buffer is empty
     // Equivalent to while ( !(UCSR0A & (1 << UDRE0)) )
     UDR0 = b;
+}
+
+void UART0_write_bytes(uint8_t* data, uint8_t size){
+    for(int i = 0 ; i < size ; ++ i){
+        UART0_write_byte(data[i]);
+    }
 }
 
 char UART0_read_byte() {

@@ -78,19 +78,20 @@ void SD_SEND_DUMMY(){
     SD_write_cmd(dummy_mosi_data);
 }
 
-uint8_t SD_GO_IDLE_STATE(){
+uint32_t SD_GO_IDLE_STATE(){
+    SPI_set_low_freq();
     SD_build_msg(GO_IDLE_STATE, 0x00000000, msg);
     SD_write_cmd(msg);
     return SD_read_resp();
 }
 
-uint8_t SD_SEND_IF_COND(){
+uint32_t SD_SEND_IF_COND(){
     SD_build_msg(SEND_IF_COND, 0x000001AA, msg);
     SD_write_cmd(msg);
     return SD_read_resp();
 }
 
-uint8_t SD_APP_SEND_OP_COND(){
+uint32_t SD_APP_SEND_OP_COND(){
     uint8_t resp = 0xFF;
     do{
         SD_build_msg(APP_CMD, 0x00000000, msg);
@@ -101,17 +102,18 @@ uint8_t SD_APP_SEND_OP_COND(){
         resp = SD_read_resp();
     }while(resp != 0x00);
 
+    // SPI_set_high_freq();
     return resp;
 }
 
-uint8_t SD_SET_BLOCKLEN(){
+uint32_t SD_SET_BLOCKLEN(){
     SPI_write_byte(0xFF);
     SD_build_msg(SET_BLOCKLEN, 0x00000000 | BLOCK_SIZE, msg);
     SD_write_cmd(msg);
     return SD_read_resp();
 }
 
-uint8_t SD_READ_SINGLE_BLOCK(uint32_t address, uint8_t* data){
+uint32_t SD_READ_SINGLE_BLOCK(uint32_t address, uint8_t* data){
     uint8_t resp = 0x00;
 
     // The logic here is a bit different from the intitialize
@@ -146,7 +148,7 @@ uint8_t SD_READ_SINGLE_BLOCK(uint32_t address, uint8_t* data){
     return resp;
 }
 
-uint8_t SD_WRITE_BLOCK(uint32_t address, uint8_t* data){
+uint32_t SD_WRITE_BLOCK(uint32_t address, uint8_t* data){
     uint8_t resp = 0x00;
     SPI_write_byte(0xFF);
 
@@ -199,25 +201,33 @@ uint8_t SD_WRITE_BLOCK(uint32_t address, uint8_t* data){
         resp = SPI_read_byte();
     }while(resp == 0x00);
 
+    SD_SEND_DUMMY();
     return resp;
 }
 
+uint32_t SD_format(){
+    uint8_t* block_data = malloc(sizeof(uint8_t) * BLOCK_SIZE);
+    for(int i = 0 ; i < BLOCK_SIZE ; ++ i)
+            block_data[i] = 0x00;
+
+    ((uint32_t*)block_data)[0] = ltobe(0x01);
+    SD_WRITE_BLOCK(0x00000000, block_data);
+    return 0x00;
+}
+
 void SD_init(){
+    uint32_t resp = 0xFF;
 
     SD_SEND_DUMMY();
-    UART0_write_byte(SD_GO_IDLE_STATE());
-    UART0_write_byte(SD_SEND_IF_COND());
-    UART0_write_byte(SD_APP_SEND_OP_COND());
-    UART0_write_byte(SD_SET_BLOCKLEN());
+    resp = SD_GO_IDLE_STATE();
+    UART0_write_bytes(&resp, sizeof(resp));
 
-    // uint8_t* block_data = malloc(sizeof(uint8_t) * BLOCK_SIZE);
-    // for(int i = 0 ; i < BLOCK_SIZE ; ++ i)
-    //         block_data[i] = 0x00;
-    // block_data[3] = 0x01;
-    // SD_WRITE_BLOCK(0x00000000, block_data);
+    resp = SD_SEND_IF_COND();
+    UART0_write_bytes(&resp, sizeof(resp));
 
-    // SD_READ_SINGLE_BLOCK(0x0000FF00, block_data);
-    // UART0_write_byte(block_data[0]);
-    // UART0_write_byte(block_data[1]);
-    // UART0_write_byte(block_data[2]);
+    resp = SD_APP_SEND_OP_COND();
+    UART0_write_bytes(&resp, sizeof(resp));
+
+    resp = SD_SET_BLOCKLEN();
+    UART0_write_bytes(&resp, sizeof(resp));
 }

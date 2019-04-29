@@ -20,6 +20,13 @@ void SPI_init(){
     PORTB &= ~(1 << PORTB2);             // Set SS line LOW(0) to begin communication
 }
 
+void SPI_set_low_freq(){
+    SPCR |= (0 << SPR0) | (1 << SPR1);   // Set to highest division factor (Clock = 125kHz)
+}
+
+void SPI_set_high_freq(){
+    SPCR |= (0 << SPR0);   // Set to highest division factor (Clock = 125kHz)
+}
 void SPI_write_byte(uint8_t byte){
     SPDR = byte;
     while(!(SPSR & (1 << SPIF)));  // Wait until all data is sent

@@ -1,9 +1,14 @@
-CFLAGS = -Os -DF_CPU=16000000UL -DBAUD=9600 -mmcu=atmega328p
+CFLAGS = -Os -DF_CPU=16000000UL -mmcu=atmega328p
 LDFLAGS = -mmcu=atmega328p
 CC = avr-gcc
 
 all: compile upload
 main: main.o UART.o SD.o FS.o SPI.o timers.c
+
+SPI.o: SPI.h SPI.c
+UART.o: UART.h UART.c
+SD.o: SD.h SD.c
+FS.o: FS.h FS.c
 
 compile: main
 	avr-objcopy -O ihex -R .eeprom main main.hex

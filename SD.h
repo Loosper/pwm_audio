@@ -26,13 +26,14 @@
 //ACMD<n> means a command sequense of CMD55-CMD<n>.
 
 #define MSG_LENGTH 6    // Every command has a constant length of 6 bytes
-#define BLOCK_SIZE 512  //Read and write block size
+#define BLOCK_SIZE 512  //Read and write block size [bytes]
 
 void SD_init();
 void SD_SEND_DUMMY();
-uint8_t SD_GO_IDLE_STATE();
-uint8_t SD_SEND_IF_COND();
-uint8_t SD_APP_SEND_OP_COND();
-uint8_t SD_SET_BLOCKLEN();
-uint8_t SD_READ_SINGLE_BLOCK(uint32_t, uint8_t*);
-uint8_t SD_WRITE_BLOCK(uint32_t, uint8_t*);
+uint32_t SD_GO_IDLE_STATE();
+uint32_t SD_SEND_IF_COND();
+uint32_t SD_APP_SEND_OP_COND();
+uint32_t SD_SET_BLOCKLEN();
+uint32_t SD_READ_SINGLE_BLOCK(uint32_t, uint8_t*);
+uint32_t SD_WRITE_BLOCK(uint32_t, uint8_t*);
+uint32_t SD_format();
