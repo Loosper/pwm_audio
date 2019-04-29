@@ -37,7 +37,7 @@ inline void UART0_TX_enable() {
     UCSR0B |= _BV(TXEN0);
 }
 
-void UART0_write_byte(uint8_t b) {
+inline void UART0_write_byte(uint8_t b) {
     loop_until_bit_is_set(UCSR0A, UDRE0); // Wait until buffer is empty
     // Equivalent to while ( !(UCSR0A & (1 << UDRE0)) )
     UDR0 = b;
@@ -49,8 +49,17 @@ void UART0_write_bytes(uint8_t* data, uint8_t size){
     }
 }
 
-char UART0_read_byte() {
+inline char UART0_read_byte() {
     loop_until_bit_is_set(UCSR0A, RXC0); // Wait until data is recieved
     // Equivalent to while ( !(UCSR0A & (1 << RXC0)) )
     return UDR0;
+}
+
+void UART0_read_bytes(uint8_t *ptr, uint8_t size) {
+    uint8_t byte;
+
+    for (int i = 0; i < size; i++) {
+        byte = UART0_read_byte();
+        ptr[i] = byte;
+    }
 }

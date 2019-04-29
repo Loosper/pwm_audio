@@ -23,10 +23,10 @@
 #define APP_CMD                   0x37  // Leading command of ACMD<n> command
 #define READ_OCR                  0x3A  // Read OCR
 #define SWITCH_CRC                0x3B  // Switch CRC
-//ACMD<n> means a command sequense of CMD55-CMD<n>.
+// ACMD<n> means a command sequense of CMD55-CMD<n>.
 
 #define MSG_LENGTH 6    // Every command has a constant length of 6 bytes
-#define BLOCK_SIZE 512  //Read and write block size [bytes]
+#define BLOCK_SIZE 512  // Read and write block size [bytes]
 
 void SD_init();
 void SD_SEND_DUMMY();
@@ -36,4 +36,3 @@ uint32_t SD_APP_SEND_OP_COND();
 uint32_t SD_SET_BLOCKLEN();
 uint32_t SD_READ_SINGLE_BLOCK(uint32_t, uint8_t*);
 uint32_t SD_WRITE_BLOCK(uint32_t, uint8_t*);
-uint32_t SD_format();

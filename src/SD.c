@@ -19,6 +19,7 @@ uint8_t dummy_mosi_data[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 uint8_t msg[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
+uint8_t data_block[BLOCK_SIZE];
 
 void SD_write_cmd(uint8_t *mosi_data){
     for(int i = 0 ; i < MSG_LENGTH ; ++ i){
@@ -205,15 +206,6 @@ uint32_t SD_WRITE_BLOCK(uint32_t address, uint8_t* data){
     return resp;
 }
 
-uint32_t SD_format(){
-    uint8_t* block_data = malloc(sizeof(uint8_t) * BLOCK_SIZE);
-    for(int i = 0 ; i < BLOCK_SIZE ; ++ i)
-            block_data[i] = 0x00;
-
-    ((uint32_t*)block_data)[0] = ltobe(0x01);
-    SD_WRITE_BLOCK(0x00000000, block_data);
-    return 0x00;
-}
 
 void SD_init(){
     uint32_t resp = 0xFF;

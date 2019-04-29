@@ -19,133 +19,104 @@
 #include "SD.h"
 #include "UART.h"
 
-uint32_t FILE_BEG;            // Beggining of the current file
-uint32_t FILE_SIZE;           // Size of the current file
-uint32_t CUR_LOC;             // Location in the current file (in BLOCK_SIZE)
-uint32_t LAST_LOC;            // Location of last file
+extern uint8_t * data_block;
 
-// Little TO Big Endian
-//
-uint32_t ltobe(uint32_t lit){
-    uint32_t b0 = (lit & 0x000000FF) << 24;
-    uint32_t b1 = (lit & 0x0000FF00) << 8;
-    uint32_t b2 = (lit & 0x00FF0000) >> 8;
-    uint32_t b3 = (lit & 0xFF000000) >> 24;
+// // Little TO Big Endian
+// //
+// uint32_t ltobe(uint32_t lit){
+//     uint32_t b0 = (lit & 0x000000FF) << 24;
+//     uint32_t b1 = (lit & 0x0000FF00) << 8;
+//     uint32_t b2 = (lit & 0x00FF0000) >> 8;
+//     uint32_t b3 = (lit & 0xFF000000) >> 24;
 
-    return b0 | b1 | b2 | b3;
+//     return b0 | b1 | b2 | b3;
+// }
+
+uint32_t FS_format(){
+    struct fs_header * header = data_block;
+
+    header->n_files = 0;
+    header->files[0].first_block = 0x1;
+    header->files[0].last_block = 0x1;
+    header->files[0].last_byte = 0;
+
+    SD_WRITE_BLOCK(0x00000000, data_block);
+
+    return 0x0;
 }
 
-void FS_init(){
-    uint8_t* data_block = malloc(sizeof(uint8_t) * BLOCK_SIZE);
-    SD_READ_SINGLE_BLOCK(BEG_ADDRESS, data_block);       // Read the very first block
-                                                         // of data ton the SD card
-
-    // WATCH OUT FOR BYTE OREDER
-    // THE CODE IS COMPILED FOR LITTLE ENDIAN
-    // THEREFORE 0X00000001 != 1
-    // AND       0X01000000 == 1
-    // BECAUSE ALL THE SIZES ARE IN BIG ENDIAN
-    // A FUNCTION IS USED FOR THE CONVERSION
-
-    LAST_LOC = ((uint32_t*) data_block)[0];
-    LAST_LOC = ltobe(LAST_LOC);
-
-    SD_READ_SINGLE_BLOCK(BEG_ADDRESS + 1, data_block);   // First file should be exactly
-    FILE_SIZE = ((uint32_t*) data_block)[0];             // after LAST_LOC
-    FILE_SIZE = ltobe(FILE_SIZE);
-
-    FILE_BEG = 2 * sizeof(uint32_t);                     // Skip file size and CRC
-    CUR_LOC = FILE_BEG;
-
-    free(data_block);
-
-}
-
-uint32_t FS_next_file(){
-    uint8_t* data_block = malloc(sizeof(uint8_t) * BLOCK_SIZE);
-
-    if(FILE_BEG + FILE_SIZE > LAST_LOC){
-        return 0x08;
-    }else{
-        FILE_BEG = FILE_BEG + FILE_SIZE;
-    }
-    CUR_LOC = FILE_BEG;
-
-    SD_READ_SINGLE_BLOCK(CUR_LOC, data_block);
-    FILE_SIZE = ((uint32_t*) data_block)[0];
-    free(data_block);
-
-    return 0x00;
-}
-
-uint32_t FS_prev_file(){
-    uint8_t* data_block = malloc(sizeof(uint8_t) * BLOCK_SIZE);
-
-    if(FILE_BEG - FILE_SIZE < ltobe(0x01)){
-        return 0x08;
-    }else{
-        FILE_BEG = FILE_BEG - FILE_SIZE;
-    }
-    CUR_LOC = FILE_BEG;
-
-    SD_READ_SINGLE_BLOCK(FILE_BEG, data_block);
-    FILE_SIZE = ((uint32_t*) data_block)[0];
-    free(data_block);
-    return 0x00;
-}
-
-uint32_t FS_get_file_size(){
-    return FILE_SIZE;
-}
-
-void FS_read_block(uint8_t* data_block){
-    SD_READ_SINGLE_BLOCK(CUR_LOC, data_block);
-    CUR_LOC += 1;
-}
-
-uint8_t FS_upload_block(uint8_t* data_block, uint32_t address){
-    for(int i = 0 ; i < BLOCK_SIZE ; ++ i){
+static void FS_upload_block(uint8_t* data_block, uint32_t address){
+    for (int i = 0; i < BLOCK_SIZE; i++) {
         data_block[i] = UART0_read_byte();
     }
 
     SD_WRITE_BLOCK(address, data_block);
-    return 0x00;
 }
 
-uint32_t FS_get_last_location(){
-    return LAST_LOC;
-}
-uint32_t FS_format(){
-    SD_format();
-    LAST_LOC = 0x01;
-    return 0x00;
-}
+// transfer protocol after initiating upload
+// any rejection terminates the transfer
+// player       PC
+// 1 byte  -->  room for more files (true/false)
+// 4 bytes -->  room left
+// 4 bytes <--  bytes to send
+// 1 byte -->   will fit (true/false)
+// loop:
+// 1 byte -->   ready for transmission. on value 2 => transfer is ready
+// <=512  <--   receive up to 512 bytes
 
+
+// TODO: check endianness
 uint32_t FS_upload_file(){
-    uint8_t* data_block = malloc(sizeof(uint8_t) * BLOCK_SIZE);
-    UART0_write_bytes(&LAST_LOC, sizeof(LAST_LOC));
+    struct fs_header * header = data_block;
+    struct file_header * last_file;
+    struct file_header * next_file;
+    uint32_t bytes_left;
+    uint32_t inc_bytes;
+    uint32_t first_block;
+    uint32_t last_block;
 
-    FS_upload_block(data_block, LAST_LOC);
-    LAST_LOC += 1;
+    SD_READ_SINGLE_BLOCK(0x0, data_block);
+    last_file = &header->files[header->n_files - 1];
+    next_file = &header->files[header->n_files];
 
-    uint32_t f_blocks = ((uint32_t*) data_block)[0];
-    f_blocks = ltobe(f_blocks);
-    UART0_write_bytes(&f_blocks, sizeof(f_blocks));
-
-    uint32_t f_crc = ((uint32_t*) data_block)[1];
-    UART0_write_bytes(&f_crc, sizeof(f_crc));
-
-    for(int i = 1 ; i < f_blocks ; ++ i){
-        FS_upload_block(data_block, LAST_LOC);
-
-        LAST_LOC += 1;
-        ((uint32_t*)data_block)[0] = ltobe(LAST_LOC);
-        SD_WRITE_BLOCK(BEG_ADDRESS, data_block);
-
-        UART0_write_byte(0x00);
+    // check if there's room for another file
+    if (header->n_files >= MAX_FILES) {
+        return FILE_REJECTED;
+    } else {
+        // number of bytes that can be allocated for a new file
+        bytes_left = (
+            MAX_BLOCKS - last_file->last_block
+        ) * BLOCK_SIZE;
+        UART0_write_byte(FILE_ACCEPTED);
+        UART0_write_bytes(&bytes_left, 4);
     }
 
-    free(data_block);
+    UART0_read_bytes(&inc_bytes, 4);
 
-    return 0x00;
+    // check if new file will fit
+    if (inc_bytes > bytes_left) {
+        UART0_write_byte(FILE_ACCEPTED);
+    } else {
+        return FILE_REJECTED;
+    }
+
+    // add a new file
+    next_file->first_block = last_file->last_block + 1;
+    next_file->last_block = next_file->first_block + (inc_bytes / BLOCK_SIZE);
+    next_file->last_byte = inc_bytes % BLOCK_SIZE;
+    header->n_files += 1;
+    // save locally since they will be overwritten in a sec
+    first_block = next_file->first_block;
+    last_block = next_file->last_block;
+
+    // save header to SD card
+    SD_WRITE_BLOCK(0x0, data_block);
+
+    // write whole file to SD card
+    for (; first_block <= last_block; first_block++) {
+        UART0_write_byte(FILE_ACCEPTED);
+        FS_upload_block(data_block, first_block);
+    }
+
+    return TRANSFER_COMPLETE;
 }

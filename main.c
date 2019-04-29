@@ -16,14 +16,15 @@ ISR (USART_RX_vect){
     uint8_t cmd = UART0_read_byte();
     uint32_t resp = 0xFFFFFFFF;
     switch(cmd){
-        case GO_IDLE_STATE:     resp = SD_GO_IDLE_STATE(); break;
-        case SEND_IF_COND:      resp = SD_SEND_IF_COND(); break;
-        case APP_SEND_OP_COND:  resp = SD_APP_SEND_OP_COND(); break;
-        case READ_SINGLE_BLOCK: resp = SD_GO_IDLE_STATE() ; break;
-        case WRITE_BLOCK:       resp = FS_upload_file() ; break;
-        case 0xAA:              resp = FS_format(); break;
-        case 0xAB:              resp = FS_get_last_location(); break;
-        case 0xAC:              resp = FS_get_file_size(); break;
+        case GO_IDLE_STATE:     resp = SD_GO_IDLE_STATE();     break;
+        case SEND_IF_COND:      resp = SD_SEND_IF_COND();      break;
+        case APP_SEND_OP_COND:  resp = SD_APP_SEND_OP_COND();  break;
+        case READ_SINGLE_BLOCK: resp = SD_GO_IDLE_STATE() ;    break;
+        case WRITE_BLOCK:       resp = FS_upload_file() ;      break;
+        case 0xAA:              resp = FS_format();            break;
+        case 0xAD:              resp = 0x21;                   break;
+        // case 0xAB:              resp = FS_get_last_location(); break;
+        // case 0xAC:              resp = FS_get_file_size();     break;
     }
 
     UART0_write_bytes(&resp, sizeof(resp));
@@ -47,9 +48,9 @@ void led_blue_flip() {
 volatile char latest = 0;
 
 // will fire when a sample needs changing
-ISR(TIMER0_COMPA_vect) {
-    OCR1A = latest;
-}
+// ISR(TIMER0_COMPA_vect) {
+//     OCR1A = latest;
+// }
 
 // // UART recieve
 // ISR(USART_RX_vect) {
@@ -67,7 +68,7 @@ int main(void) {
 
     SPI_init();
     SD_init();
-    FS_init();
+
     // timer_0A_init();
     // timer_1A_init();
 

@@ -2,14 +2,16 @@ CFLAGS = -Os -I include -DBAUD=76800 -DF_CPU=16000000UL -mmcu=atmega328p -Wno-in
 LDFLAGS = -mmcu=atmega328p
 CC = avr-gcc
 
-SRC = $(wildcard src/*.c)
+SRC = main.c $(wildcard src/*.c)
 OBJ = $(SRC:%.c=%.o)
 DEPS := $(OBJ:.o=.d)
 
 all: compile upload
 main: $(OBJ)
 
+# skip if they don't exist
 -include $(DEPS)
+# -MMD make the .d file, -MF tells it where
 %.o: %.c
 	$(CC) $(CFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c -o $@ $<
 

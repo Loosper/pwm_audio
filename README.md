@@ -14,6 +14,11 @@ wdt - WatchDog Timer
 [arduino nano pinout](http://christianto.tjahyadi.com/wp-content/uploads/2014/11/nano.jpg)  
 [atmega 328p datasheet](http://ww1.microchip.com/downloads/en/DeviceDoc/Atmel-7810-Automotive-Microcontrollers-ATmega328P_Datasheet.pdf)  
 [timers quickref](https://sites.google.com/site/qeewiki/books/avr-guide/pwm-on-the-atmega328)
+
+[SPI intro](http://www.dejazzer.com/ee379/lecture_notes/lec12_sd_card.pdf)
+[SD card info](http://elm-chan.org/docs/mmc/mmc_e.html)
+[SD card guide](https://openlabpro.com/guide/interfacing-microcontrollers-with-sd-card/)
+
 `/usr/lib/avr`  
 `/usr/lib/avr/include/avr/[iom328p.h]` - definitions for different microcontrollers  
 
