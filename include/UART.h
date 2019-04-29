@@ -1,7 +1,5 @@
 #include <stdint.h>
 
-#define F_CPU 16000000                      // Clock Speed
-#define BAUD 76800                         // Baud rate
 // #define MYUBRR FOSC/16/MYBAUD -1            // Corresponding UBBR value
 
 void UART0_init();

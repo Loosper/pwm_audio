@@ -2,6 +2,7 @@
 *.hex
 main
 
+*.swp
 .vscode/
 .env/
 *.mp3

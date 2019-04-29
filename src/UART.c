@@ -1,10 +1,7 @@
 #include <avr/io.h>
-#define F_CPU 16000000
-#define BAUD 76800
 #include <stdint.h>
 #include "UART.h"
 #include <util/setbaud.h>
-
 
 
 void UART0_init() {

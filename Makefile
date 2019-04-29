@@ -1,14 +1,17 @@
-CFLAGS = -Os -DF_CPU=16000000UL -mmcu=atmega328p
+CFLAGS = -Os -I include -DBAUD=76800 -DF_CPU=16000000UL -mmcu=atmega328p -Wno-incompatible-pointer-types
 LDFLAGS = -mmcu=atmega328p
 CC = avr-gcc
 
-all: compile upload
-main: main.o UART.o SD.o FS.o SPI.o timers.c
+SRC = $(wildcard src/*.c)
+OBJ = $(SRC:%.c=%.o)
+DEPS := $(OBJ:.o=.d)
 
-SPI.o: SPI.h SPI.c
-UART.o: UART.h UART.c
-SD.o: SD.h SD.c
-FS.o: FS.h FS.c
+all: compile upload
+main: $(OBJ)
+
+-include $(DEPS)
+%.o: %.c
+	$(CC) $(CFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c -o $@ $<
 
 compile: main
 	avr-objcopy -O ihex -R .eeprom main main.hex
@@ -19,5 +22,6 @@ upload:
 	# for nano
 	# avrdude -F -V -c arduino -p ATMEGA328P -P /dev/ttyUSB0 -b 57600 -U flash:w:main.hex
 
+.PHONY: clean
 clean:
-	rm -f main main.hex *.o
+	rm -f main main.hex $(OBJ) $(DEPS)

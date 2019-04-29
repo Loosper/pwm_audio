@@ -10,6 +10,7 @@
 #include "FS.h"
 #include "timers.h"
 
+
 // not working
 ISR (USART_RX_vect){
     uint8_t cmd = UART0_read_byte();
@@ -50,11 +51,11 @@ ISR(TIMER0_COMPA_vect) {
     OCR1A = latest;
 }
 
-// UART recieve
-ISR(USART_RX_vect) {
-    latest = UDR0;
-    // UART0_write_byte(latest);
-}
+// // UART recieve
+// ISR(USART_RX_vect) {
+//     latest = UDR0;
+//     // UART0_write_byte(latest);
+// }
 
 int main(void) {
     // enable interrupts
