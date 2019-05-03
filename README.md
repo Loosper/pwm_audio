@@ -5,6 +5,9 @@ bare metal arudino audio player with PWM
 `sudo apt install avr-libc avrdude avr-gcc`
 
 # Notes
+## Endianness
+The AVR architecture is 8 bit, therefore endianness is meaningless. However, multibyte structures are intrepretted as little endian.  
+
 ## Glossary
 _BV - Bit Value
 wdt - WatchDog Timer

@@ -18,7 +18,8 @@ main: $(OBJ)
 compile: main
 	avr-objcopy -O ihex -R .eeprom main main.hex
 
-upload:
+upload: compile
+	avr-size -C --mcu=atmega328p main
 	# for uno
 	avrdude -F -V -c arduino -p ATMEGA328P -P /dev/ttyACM0 -b 115200 -U flash:w:main.hex
 	# for nano

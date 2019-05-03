@@ -19,20 +19,10 @@
 #include "SD.h"
 #include "UART.h"
 
-extern uint8_t * data_block;
+extern uint8_t data_block[BLOCK_SIZE];
 
-// // Little TO Big Endian
-// //
-// uint32_t ltobe(uint32_t lit){
-//     uint32_t b0 = (lit & 0x000000FF) << 24;
-//     uint32_t b1 = (lit & 0x0000FF00) << 8;
-//     uint32_t b2 = (lit & 0x00FF0000) >> 8;
-//     uint32_t b3 = (lit & 0xFF000000) >> 24;
 
-//     return b0 | b1 | b2 | b3;
-// }
-
-uint32_t FS_format(){
+uint32_t FS_format() {
     struct fs_header * header = data_block;
 
     header->n_files = 0;
@@ -40,7 +30,7 @@ uint32_t FS_format(){
     header->files[0].last_block = 0x1;
     header->files[0].last_byte = 0;
 
-    SD_WRITE_BLOCK(0x00000000, data_block);
+    SD_WRITE_BLOCK(0x00000000, header);
 
     return 0x0;
 }
@@ -63,6 +53,7 @@ static void FS_upload_block(uint8_t* data_block, uint32_t address){
 // loop:
 // 1 byte -->   ready for transmission. on value 2 => transfer is ready
 // <=512  <--   receive up to 512 bytes
+// all audio should be 8 bit single channel, 8000 Hz
 
 
 // TODO: check endianness
@@ -74,6 +65,7 @@ uint32_t FS_upload_file(){
     uint32_t inc_bytes;
     uint32_t first_block;
     uint32_t last_block;
+    uint16_t last_byte;
 
     SD_READ_SINGLE_BLOCK(0x0, data_block);
     last_file = &header->files[header->n_files - 1];
@@ -81,6 +73,8 @@ uint32_t FS_upload_file(){
 
     // check if there's room for another file
     if (header->n_files >= MAX_FILES) {
+        UART0_write_byte(header->n_files);
+        // UART0_write_byte(FILE_REJECTED);
         return FILE_REJECTED;
     } else {
         // number of bytes that can be allocated for a new file
@@ -95,19 +89,28 @@ uint32_t FS_upload_file(){
 
     // check if new file will fit
     if (inc_bytes > bytes_left) {
-        UART0_write_byte(FILE_ACCEPTED);
-    } else {
+        UART0_write_byte(FILE_REJECTED);
         return FILE_REJECTED;
+    } else {
+        UART0_write_byte(FILE_ACCEPTED);
     }
 
+    first_block = last_file->last_block + 1;
+    last_block = first_block + (inc_bytes / BLOCK_SIZE);
+    last_byte = inc_bytes % BLOCK_SIZE;
+    // // add the last not full block since integer division will skip it
+    // if (last_byte != 0) {
+    //     last_block += 1;
+    // } else {
+    //     last_byte = 511;
+    // }
+
     // add a new file
-    next_file->first_block = last_file->last_block + 1;
-    next_file->last_block = next_file->first_block + (inc_bytes / BLOCK_SIZE);
-    next_file->last_byte = inc_bytes % BLOCK_SIZE;
+    next_file->first_block = first_block;
+    next_file->last_block = last_block;
+    next_file->last_byte = last_byte;
+
     header->n_files += 1;
-    // save locally since they will be overwritten in a sec
-    first_block = next_file->first_block;
-    last_block = next_file->last_block;
 
     // save header to SD card
     SD_WRITE_BLOCK(0x0, data_block);
@@ -115,8 +118,10 @@ uint32_t FS_upload_file(){
     // write whole file to SD card
     for (; first_block <= last_block; first_block++) {
         UART0_write_byte(FILE_ACCEPTED);
+        // UART0_write_byte(last_block - first_block);
         FS_upload_block(data_block, first_block);
     }
 
+    UART0_write_byte(TRANSFER_COMPLETE);
     return TRANSFER_COMPLETE;
 }
