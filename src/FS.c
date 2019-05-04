@@ -95,6 +95,7 @@ uint32_t FS_upload_file(){
         UART0_write_byte(FILE_ACCEPTED);
     }
 
+    // TODO: somewhere around here is an off by 1 error
     first_block = last_file->last_block + 1;
     last_block = first_block + (inc_bytes / BLOCK_SIZE);
     last_byte = inc_bytes % BLOCK_SIZE;
@@ -116,7 +117,7 @@ uint32_t FS_upload_file(){
     SD_WRITE_BLOCK(0x0, data_block);
 
     // write whole file to SD card
-    for (; first_block <= last_block; first_block++) {
+    for (; first_block < last_block; first_block++) {
         UART0_write_byte(FILE_ACCEPTED);
         // UART0_write_byte(last_block - first_block);
         FS_upload_block(data_block, first_block);

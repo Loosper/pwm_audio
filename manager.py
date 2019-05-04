@@ -55,32 +55,22 @@ def upload_file(file_name):
             print('Not enough space on SD card')
             return
 
-        # input('send?\')
-        blocks = math.ceil(size / BLOCK_SIZE)
-        # TODO: OFF BY ONE ERRROR (on the other side i think)
-        for cur in range(blocks - 1):
-            print(f'Sending block {cur + 1} of {blocks}')
+        # blocks = math.ceil(size / BLOCK_SIZE)
+        # TODO: most likely an off by 1 error on the controller.
+        # here we trust it is correct just to complete the upload
+        cur = 0
+        while True:
             status = conn.read(1)
 
-            if status == b'\x02':
-                print('Upload ended prematurely')
-                return
-            elif status == b'\x00':
-                print('how')
-            # else:
-            #     print(f'bad: {status}')
+            if status != b'\x01':
+                break
 
-            assert status == b'\x01'
-
-            # print('tmp read')
-            # cur_block = int.from_bytes(conn.read(1), byteorder='little')
-            # print(f'left: {cur_block}')
+            print(f'Sending block {cur}')
             data = file.readframes(BLOCK_SIZE)[::4]
-
             conn.write(data)
+            cur += 1
 
-        print(conn.read(1))
-        # assert conn.read(1) == b'\x02'
+        assert status == b'\x02'
         print('Transfer complete')
 
 def read_response():
@@ -93,6 +83,9 @@ def upload_cmd(params):
         upload_file(params[0])
     except IndexError:
         print('Please enter filename')
+        return
+    except FileNotFoundError:
+        print(f'No such file {params[0]}')
         return
 
     resp_code = read_response()
