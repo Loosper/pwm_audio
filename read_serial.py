@@ -18,13 +18,9 @@ try:
     con.write(b'\x08')
     con.write(b'\x29')
     con.read(12)
-    # con.write(b'\xAB')
-    # time.sleep(1)
 
     while True:
-        con.write(b'\xAA')
-        print(f'0x{int.from_bytes(con.read(4), byteorder="little"):02x}')
-        time.sleep(0.4)
+        print(f'0x{int.from_bytes(con.read(1), byteorder="little"):02x}')
 except KeyboardInterrupt:
     con.close()
     print('bye')

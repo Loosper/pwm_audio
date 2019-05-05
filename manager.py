@@ -66,7 +66,8 @@ def upload_file(file_name):
                 break
 
             print(f'Sending block {cur}')
-            data = file.readframes(BLOCK_SIZE)[::4]
+            data = file.readframes(BLOCK_SIZE)
+
             conn.write(data)
             cur += 1
 
@@ -111,11 +112,10 @@ commands = {
     'SEND_IF_COND':     [formatted_cmd, b'\x08', 'Check voltage range'],
     'APP_SEND_OP_COND': [formatted_cmd, b'\x29', 'Start initialization process'],
     'FORMAT':           [formatted_cmd, b'\xAA', 'Format SD card'],
-    'LAST_LOC':         [info_cmd,      b'\xAB', 'Get location of last file'],
+    'INFO':             [info_cmd,      b'\xAB', 'Get info about SD card'],
     'FILE_SIZE':        [info_cmd,      b'\xAC', 'Get size of last file'],
     'PING':             [formatted_cmd, PING, 'Check for connectivity'],
     'UPLOAD':           [upload_cmd,    b'\x18', 'Upload a file'],
-    # debug commands
 }
 
 def main():

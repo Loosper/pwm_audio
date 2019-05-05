@@ -74,6 +74,10 @@ void timer_1A_init() {
     OCR1A = 0;
 }
 
+void toggle_pwm() {
+    DDRB ^= _BV(DDB1);
+}
+
 void pwm_run() {
     while (1) {
         char a;

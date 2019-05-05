@@ -6,6 +6,10 @@ SRC = main.c $(wildcard src/*.c)
 OBJ = $(SRC:%.c=%.o)
 DEPS := $(OBJ:.o=.d)
 
+.PHONY: compile
+.PHONY: upload
+.PHONY: clean
+
 all: compile upload
 main: $(OBJ)
 
@@ -15,8 +19,10 @@ main: $(OBJ)
 %.o: %.c
 	$(CC) $(CFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c -o $@ $<
 
-compile: main
+main.hex: main
 	avr-objcopy -O ihex -R .eeprom main main.hex
+
+compile: main.hex
 
 upload: compile
 	avr-size -C --mcu=atmega328p main
@@ -25,6 +31,5 @@ upload: compile
 	# for nano
 	# avrdude -F -V -c arduino -p ATMEGA328P -P /dev/ttyUSB0 -b 57600 -U flash:w:main.hex
 
-.PHONY: clean
 clean:
 	rm -f main main.hex $(OBJ) $(DEPS)

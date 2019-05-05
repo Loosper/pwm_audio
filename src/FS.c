@@ -1,17 +1,3 @@
-// SD file format:
-//
-// The very first 4 bytes of the SD card should
-// indicate the position of the last file.
-//
-// Due to reading being limited to chunks with
-// size BLOCK_SIZE, all sizes and locations
-// are saved using BLOCK_SIZE as a unit.
-//
-//    4 bytes       4 bytes        N bytes
-// +-----------+-------------+-------- ... ---+
-// | File size |  32 bit CRC |   DATA         |
-// +-----------+-------------+-------- ... ---+
-//
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -19,20 +5,61 @@
 #include "SD.h"
 #include "UART.h"
 
+#define LOAD_HEADER() SD_READ_SINGLE_BLOCK(0x0, data_block)
+#define FS_HEADER ((struct fs_header *)data_block)
+
 extern uint8_t data_block[BLOCK_SIZE];
+struct file_system fs;
 
 
+static inline void FS_update_struct() {
+    struct file_header * file = &FS_HEADER->files[fs.file_id];
+
+    fs.first_block = file->first_block;
+    fs.cur_block = file->first_block;
+    fs.last_block = file->last_block;
+    fs.last_byte = file->last_byte;
+}
+
+void FS_init() {
+    LOAD_HEADER();
+
+    fs.file_id = FS_HEADER->n_files;
+    if (FS_HEADER->n_files > 1) {
+        fs.file_id = 1;
+    } else {
+        fs.file_id = 0;
+    }
+
+    FS_update_struct();
+}
+
+// first block is reserved for the file system header
 uint32_t FS_format() {
-    struct fs_header * header = data_block;
+    // first file is reserved for housekeeping
+    FS_HEADER->n_files = 1;
+    FS_HEADER->files[0].first_block = 0x1;
+    FS_HEADER->files[0].last_block = 0x1;
+    FS_HEADER->files[0].last_byte = 0;
 
-    header->n_files = 0;
-    header->files[0].first_block = 0x1;
-    header->files[0].last_block = 0x1;
-    header->files[0].last_byte = 0;
+    SD_WRITE_BLOCK(0x0, FS_HEADER);
 
-    SD_WRITE_BLOCK(0x00000000, header);
+    return SUCCESS;
+}
 
-    return 0x0;
+int16_t FS_read_block(uint8_t* buff) {
+    if (fs.cur_block >= fs.last_block) {
+        return ERROR;
+    }
+
+    fs.cur_block += 1;
+    SD_READ_SINGLE_BLOCK(fs.cur_block, buff);
+
+    if (fs.cur_block == fs.last_block) {
+        return fs.last_byte;
+    }
+
+    return SUCCESS;
 }
 
 static void FS_upload_block(uint8_t* data_block, uint32_t address){
@@ -55,10 +82,7 @@ static void FS_upload_block(uint8_t* data_block, uint32_t address){
 // <=512  <--   receive up to 512 bytes
 // all audio should be 8 bit single channel, 8000 Hz
 
-
-// TODO: check endianness
 uint32_t FS_upload_file(){
-    struct fs_header * header = data_block;
     struct file_header * last_file;
     struct file_header * next_file;
     uint32_t bytes_left;
@@ -67,13 +91,13 @@ uint32_t FS_upload_file(){
     uint32_t last_block;
     uint16_t last_byte;
 
-    SD_READ_SINGLE_BLOCK(0x0, data_block);
-    last_file = &header->files[header->n_files - 1];
-    next_file = &header->files[header->n_files];
+    LOAD_HEADER();
+    last_file = &FS_HEADER->files[FS_HEADER->n_files - 1];
+    next_file = &FS_HEADER->files[FS_HEADER->n_files];
 
     // check if there's room for another file
-    if (header->n_files >= MAX_FILES) {
-        UART0_write_byte(header->n_files);
+    if (FS_HEADER->n_files >= MAX_FILES) {
+        UART0_write_byte(FS_HEADER->n_files);
         // UART0_write_byte(FILE_REJECTED);
         return FILE_REJECTED;
     } else {
@@ -111,7 +135,7 @@ uint32_t FS_upload_file(){
     next_file->last_block = last_block;
     next_file->last_byte = last_byte;
 
-    header->n_files += 1;
+    FS_HEADER->n_files += 1;
 
     // save header to SD card
     SD_WRITE_BLOCK(0x0, data_block);
@@ -125,4 +149,43 @@ uint32_t FS_upload_file(){
 
     UART0_write_byte(TRANSFER_COMPLETE);
     return TRANSFER_COMPLETE;
+}
+
+uint32_t FS_info() {
+    // LOAD_HEADER();
+
+    UART0_write_byte(FS_HEADER->n_files);
+    UART0_write_bytes(&(fs.first_block), 4);
+    // UART0_write_bytes(&FS_HEADER->files[1].last_block, 4);
+    return 0xffffffff;
+}
+
+void FS_reset_file() {
+    fs.cur_block = fs.first_block;
+}
+
+int8_t FS_next_file() {
+    LOAD_HEADER();
+
+    if (fs.file_id < FS_HEADER->n_files - 1) {
+        fs.file_id += 1;
+    } else {
+        return ERROR;
+    }
+
+    FS_update_struct();
+    return SUCCESS;
+}
+
+int8_t FS_prev_file() {
+    LOAD_HEADER();
+
+    if (fs.file_id > 1) {
+        fs.file_id -= 1;
+    } else {
+        return ERROR;
+    }
+
+    FS_update_struct();
+    return SUCCESS;
 }

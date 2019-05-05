@@ -11,7 +11,16 @@
 #include "timers.h"
 
 
-// not working
+extern uint8_t data_block[BLOCK_SIZE];
+uint8_t extra_block[BLOCK_SIZE];
+uint8_t * current_block;
+extern struct file_system fs;
+
+volatile uint16_t idx = 0;
+volatile int8_t reload = 0;
+
+// PB5 is connected to blue led on arduino nano
+
 ISR (USART_RX_vect){
     uint8_t cmd = UART0_read_byte();
     uint32_t resp = 0xFFFFFFFF;
@@ -22,60 +31,50 @@ ISR (USART_RX_vect){
         case READ_SINGLE_BLOCK: resp = SD_GO_IDLE_STATE() ;    break;
         case WRITE_BLOCK:       resp = FS_upload_file() ;      break;
         case 0xAA:              resp = FS_format();            break;
+        case 0xAB:              resp = FS_info();              break;
         case 0xAD:              resp = 0x21;                   break;
-        // case 0xAB:              resp = FS_get_last_location(); break;
-        // case 0xAC:              resp = FS_get_file_size();     break;
     }
 
     UART0_write_bytes(&resp, sizeof(resp));
 }
 
-// built in led control for debugging
-void led_blue_on() {
-    // set pin 5 high to turn led on
-    PORTB |= _BV(PORTB5);
-}
-
-void led_blue_off() {
-    // set pin 5 high to turn led off
-    PORTB &= ~_BV(PORTB5);
-}
-
-void led_blue_flip() {
-    PORTB ^= _BV(PORTB5);
-}
-
-volatile char latest = 0;
-
 // will fire when a sample needs changing
-// ISR(TIMER0_COMPA_vect) {
-//     OCR1A = latest;
-// }
-
-// // UART recieve
-// ISR(USART_RX_vect) {
-//     latest = UDR0;
-//     // UART0_write_byte(latest);
-// }
+ISR(TIMER0_COMPA_vect) {
+    if (idx != BLOCK_SIZE) {
+        OCR1A = current_block[idx];
+        idx += 1;
+    }
+}
 
 int main(void) {
-    // enable interrupts
-    sei();
-
     UART0_init();
     UART0_TX_enable();
     UART0_RX_enable();
 
     SPI_init();
     SD_init();
+    FS_init();
 
-    // timer_0A_init();
-    // timer_1A_init();
+    timer_0A_init();
+    timer_1A_init();
 
-    // init ready if you will
-    // led_blue_on();
+    // enable interrupts
+    sei();
 
-    // pwm_run();
+    current_block = extra_block;
+    while (1) {
+        if (idx == BLOCK_SIZE) {
+            idx = 0;
 
-    while(1);
+            if (FS_read_block(current_block) == ERROR) {
+                FS_reset_file();
+            }
+
+            if (current_block == data_block) {
+                current_block = extra_block;
+            } else {
+                current_block = data_block;
+            }
+        }
+    }
 }
